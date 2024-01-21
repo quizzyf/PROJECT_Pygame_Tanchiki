@@ -6,12 +6,6 @@ import time
 import pygame
 import json
 
-# main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-# main_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-# main_socket.bind(('localhost', 10000))
-# main_socket.setblocking(False)
-# main_socket.listen(2)
-
 W, H = 600, 600
 FPS = 30
 
@@ -242,6 +236,8 @@ def foo(m_socket, port):
                     tanks.add(tank_2)
                     players.append(tank_2)
                 slovar_of_conns[port] += 1
+                for pl in players:
+                    pl.sock.send(str(len(tanks)).encode())
             else:
                 new_sock.send('F'.encode())
         except:
@@ -256,7 +252,6 @@ def foo(m_socket, port):
                     player.update(0, 0, *h)
                 else:
                     player.update(*h)
-
             except:
                 pass
         # обработка команд от челов
@@ -264,19 +259,22 @@ def foo(m_socket, port):
         # отправляем изменения челам
         for player in players:
             try:
-                sprite_data = []
-                for sprite in all_sprites:
-                    sprite_dict = {
-                        'class': sprite.name_class,
-                        'number_tank': sprite.num,
-                        'x': sprite.rect.x,
-                        'y': sprite.rect.y,
-                        'pos': sprite.pos
-                    }
-                    sprite_data.append(sprite_dict)
-                mesg = json.dumps(sprite_data).encode('utf-8')
-                player.sock.send(mesg)
-                player.errors = 0
+                if len(tanks) == 2:
+                    sprite_data = []
+                    for sprite in all_sprites:
+                        sprite_dict = {
+                            'class': sprite.name_class,
+                            'number_tank': sprite.num,
+                            'x': sprite.rect.x,
+                            'y': sprite.rect.y,
+                            'pos': sprite.pos
+                        }
+                        sprite_data.append(sprite_dict)
+                    mesg = json.dumps(sprite_data).encode('utf-8')
+                    player.sock.send(mesg)
+                    player.errors = 0
+                else:
+                    player.sock.send(str(len(tanks)).encode())
             except:
                 player.errors += 1
                 if player.errors >= 150:

@@ -2,6 +2,8 @@ import pygame
 import random as ran
 import sqlite3
 import time
+import json
+import socket
 pygame.init()
 
 # upload music and sounds
@@ -47,7 +49,8 @@ effects_img = [pygame.image.load('images/tanchiki/effect_shield.png').convert_al
 main_disp_img = pygame.image.load('images/tanchiki/main_disp.png').convert_alpha()
 medkit_img = pygame.image.load('images/tanchiki/medkit.png').convert_alpha()
 nastr_spravka_bg_img = pygame.image.load('images/tanchiki/nastroiki_spravka.png').convert_alpha()
-spravka_img = pygame.image.load('images/tanchiki/spravka.png').convert_alpha()
+spravka_off_img = pygame.image.load('images/tanchiki/spravka.png').convert_alpha()
+spravka_onl_img = pygame.image.load('images/tanchiki/spravka_online.png').convert_alpha()
 tank_img, tank1_img = pygame.image.load('images/tanchiki/tank.png').convert_alpha(), \
     pygame.image.load('images/tanchiki/tank1.png').convert_alpha()
 tank_razr_img, tank1_razr_img = pygame.image.load('images/tanchiki/tank1_razr.png').convert_alpha(),\
@@ -60,6 +63,7 @@ tank2_hp = pygame.image.load('images/tanchiki/tank2_hp.png').convert_alpha()
 
 # upload fonts
 font_schet = pygame.font.Font('Fonts/Intro.ttf', 15)
+font_st_disp_errors = pygame.font.Font('Fonts/PsychicForce2012Monospaced.ttf', 20)
 font_st_disp = pygame.font.Font('Fonts/PsychicForce2012Monospaced.ttf', 40)
 font_sprav_main_nastr = pygame.font.Font('Fonts/PsychicForce2012Monospaced.ttf', 120)
 
@@ -430,6 +434,21 @@ class Settings:
                 scr.blit(zvuk_off_img, (540, 300 + i_dr * option_y_padding))
 
 
+class Spravka:
+    def __init__(self):
+        self.tek_index = 0
+        self.spis_imgs = [spravka_off_img, spravka_onl_img]
+
+    def switch(self, direct):
+        self.tek_index += direct
+        self.tek_index %= 2
+
+    def drawi(self):
+        scr.blit(self.spis_imgs[self.tek_index], (0, 0))
+        txt_page = font_st_disp.render(str(self.tek_index + 1), True, (14, 103, 24))
+        scr.blit(txt_page, (560, 560))
+
+
 class GamePause:
     def __init__(self):
         self.option_menu_txt = []
@@ -492,9 +511,9 @@ def start_game():
     switch_volume()
 
 
-# def start_online_game():
-#     global f_online_game
-#     f_online_game = True
+def start_online_game():
+    global f_online_game
+    f_online_game = True
 
 
 def switch_game_pause():
@@ -539,15 +558,18 @@ perezapusk = False
 f_spravka = False
 f_nastroiki = False
 obsh_vol = True
+find_room = True
+txt_error_online_game = ''
 cur.execute('SELECT * FROM tanks')
 schet = cur.fetchall()
 menu.append_option('НАЧАТЬ ИГРУ', lambda: start_game())
-# menu.append_option('Сетевая игра (бета)', lambda: start_online_game())
+menu.append_option('Сетевая игра', lambda: start_online_game())
 menu.append_option('справка', lambda: spravka())
 menu.append_option('настройки', lambda: nastroiki())
 menu.append_option('ВЫЙТИ ИЗ ИГРЫ', lambda: quit_game())
 settings = Settings()
 settings.append_option('ЗВУК', lambda: switch_volume())
+spravka_cl = Spravka()
 game_pause_cls = GamePause()
 game_pause_cls.append_option('продолжить', lambda: switch_game_pause())
 game_pause_cls.append_option('звук', lambda: switch_volume(), True)
@@ -562,6 +584,12 @@ while st_ekran:
             conn.close()
             st_ekran = False
         elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_RIGHT:
+                if f_spravka:
+                    spravka_cl.switch(1)
+            if event.key == pygame.K_LEFT:
+                if f_spravka:
+                    spravka_cl.switch(-1)
             if event.key == pygame.K_UP:
                 if f_nastroiki:
                     settings.switch(-1)
@@ -582,9 +610,8 @@ while st_ekran:
                 f_nastroiki = False
     if f_spravka:
         scr.blit(nastr_spravka_bg_img, (0, 0))
-        scr.blit(spravka_img, (0, 0))
         txt_sprv = font_st_disp.render('справка', True, (14, 103, 24))
-        scr.blit(txt_sprv, (W // 2 - txt_sprv.get_width() // 2, 0))
+        spravka_cl.drawi()
     elif f_nastroiki:
         scr.blit(main_disp_img, (0, 0))
         txt_settings = font_sprav_main_nastr.render('Settings', True, (255, 255, 255))
@@ -595,6 +622,8 @@ while st_ekran:
         menu.drawi(335, 300, 50)
         txt_name = font_sprav_main_nastr.render('TANCHIKI', True, (255, 255, 255))
         scr.blit(txt_name, (W // 2 - txt_name.get_width() // 2, 0))
+        txt_error = font_st_disp_errors.render(txt_error_online_game, True, (0, 0, 0))
+        scr.blit(txt_error, (590 - txt_error.get_width(), 560))
     if not perezapusk:
         sound_shoot.set_volume(0)
         sound_uncht_tanka.set_volume(0)
@@ -830,3 +859,115 @@ while st_ekran:
 
             pygame.display.update()
             clock_.tick(FPS)
+    data_usl = 0
+    while f_online_game:
+        if find_room:
+            for i in [8000, 8001, 8002, 8003, 8004]:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+                try:
+                    sock.connect(('localhost', i))
+                    data = sock.recv(1024).decode()
+                    print(data)
+                    if data == 'F':
+                        sock.close()
+                        continue
+                    else:
+                        sockt = sock
+                        find_room = False
+                        break
+                except ConnectionRefusedError as e:
+                    if e.errno == 10061:
+                        txt_error_online_game = 'Сервер временно не работает'
+                        f_online_game = False
+                        break
+        try:
+            data = sockt.recv(1024).decode()
+            print(data)
+        except NameError:
+            pass
+        try:
+            if int(data) < 2:
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        f_online_game = False
+                        st_ekran = False
+                scr.blit(pygame.image.load('images/tanchiki/wait_for_players.png'), (0, 0))
+                pygame.display.update()
+            elif int(data) == 2:
+                data_usl = 2
+        except ValueError:
+            pass
+        except NameError:
+            pass
+        if f_online_game and data_usl == 2:
+            print('fdsfsd')
+            W, H = 600, 600
+            FPS = 30
+
+            pygame.init()
+            screen = pygame.display.set_mode((W, H))
+            clock_ = pygame.time.Clock()
+
+            TYPES_OF_IMAGES = {1: [tank_img, tank1_img], 2: wall_img, 3: bullet_img}
+
+
+            def find_inf(s):
+                otkr = None
+                s = s.decode('utf-8')
+                for i in range(len(s)):
+                    if s[i] == '[':
+                        otkr = i
+                    if s[i] == ']' and otkr is not None:
+                        zakr = i
+                        res = s[otkr + 1: zakr]
+                        return '[' + res + ']'
+                return '[]'
+
+
+            old_data = []
+            runnin = True
+            while runnin:
+                message = '<0,0>'
+                message_v = '0'
+                for event in pygame.event.get():
+                    if event.type == pygame.QUIT:
+                        runnin = False
+                        f_online_game = False
+                        st_ekran = False
+                    elif event.type == pygame.MOUSEBUTTONDOWN:
+                        if event.button == 1:
+                            message = '<2>'
+                            message_v = '2'
+
+                # считываем команду
+                keys = pygame.key.get_pressed()
+                if keys[pygame.K_a]:
+                    message = f'<-1,0,{message_v}>'
+                elif keys[pygame.K_s]:
+                    message = f'<0,1,{message_v}>'
+                elif keys[pygame.K_w]:
+                    message = f'<0,-1,{message_v}>'
+                elif keys[pygame.K_d]:
+                    message = f'<1,0,{message_v}>'
+                sock.send(message.encode())
+                # получаем изменения
+                data = sock.recv(2 ** 24)
+                data = json.loads(find_inf(data))
+                if data:
+                    old_data = data
+
+                # рисуем все
+                screen.blit(bg, (0, 0))
+                for i in old_data:
+                    n_cl, num_t, x, y, pos = i.values()
+                    if n_cl == 1:
+                        screen.blit(pygame.transform.rotate(TYPES_OF_IMAGES[n_cl][num_t - 1], (pos - 1) * 90), (x, y))
+                    if n_cl == 2:
+                        screen.blit(TYPES_OF_IMAGES[n_cl], (x, y))
+                    if n_cl == 3:
+                        screen.blit(pygame.transform.rotate(TYPES_OF_IMAGES[n_cl], (pos - 1) * 90), (x, y))
+
+                pygame.display.update()
+                clock_.tick(FPS)
+

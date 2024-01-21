@@ -4,21 +4,17 @@ import pygame
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-# sock.connect(('localhost', 8001))
-for i in [8000, 8001, 8002]:
+for i in [8000, 8001, 8002, 8003, 8004]:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-    try:
-        sock.connect(('localhost', i))
-        data = sock.recv(1024).decode()
-        print(data)
-        if data == 'F':
-            sock.close()
-            continue
-        else:
-            break
-    except:
+    sock.connect(('localhost', i))
+    data = sock.recv(1024).decode()
+    print(data)
+    if data == 'F':
+        sock.close()
         continue
+    else:
+        break
 
 W, H = 600, 600
 FPS = 30
