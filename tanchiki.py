@@ -1,3 +1,5 @@
+import pprint
+
 import pygame
 import random as ran
 import sqlite3
@@ -551,6 +553,19 @@ def nastroiki():
     f_nastroiki = True
 
 
+def find_inf(s):
+    otkr = None
+    s = s.decode('utf-8')
+    for i in range(len(s)):
+        if s[i] == '[':
+            otkr = i
+        if s[i] == ']' and otkr is not None:
+            zakr = i
+            res = s[otkr + 1: zakr]
+            return '[' + res + ']'
+    return '[]'
+
+
 menu = StartDisplay()
 st_ekran = True
 f_online_game = False
@@ -859,8 +874,19 @@ while st_ekran:
 
             pygame.display.update()
             clock_.tick(FPS)
-    data_usl = 0
+    exist_scnd_tank = False
+    find_room = True
+    game_pause = False
     while f_online_game:
+        if not exist_scnd_tank:
+            print('viv')
+            for event in pygame.event.get():
+                if event.type == pygame.QUIT:
+                    f_online_game = False
+                    st_ekran = False
+            scr.blit(pygame.image.load('images/tanchiki/wait_for_players.png'), (0, 0))
+            pygame.display.update()
+            clock_.tick(FPS)
         if find_room:
             for i in [8000, 8001, 8002, 8003, 8004]:
                 sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -868,12 +894,15 @@ while st_ekran:
                 try:
                     sock.connect(('localhost', i))
                     data = sock.recv(1024).decode()
-                    print(data)
                     if data == 'F':
                         sock.close()
                         continue
+                    if data == '2':
+                        print('ЕСТЬ!!!')
+                        exist_scnd_tank = True
+                        find_room = False
+                        break
                     else:
-                        sockt = sock
                         find_room = False
                         break
                 except ConnectionRefusedError as e:
@@ -881,49 +910,14 @@ while st_ekran:
                         txt_error_online_game = 'Сервер временно не работает'
                         f_online_game = False
                         break
-        try:
-            data = sockt.recv(1024).decode()
-            print(data)
-        except NameError:
-            pass
-        try:
-            if int(data) < 2:
-                for event in pygame.event.get():
-                    if event.type == pygame.QUIT:
-                        f_online_game = False
-                        st_ekran = False
-                scr.blit(pygame.image.load('images/tanchiki/wait_for_players.png'), (0, 0))
-                pygame.display.update()
-            elif int(data) == 2:
-                data_usl = 2
-        except ValueError:
-            pass
-        except NameError:
-            pass
-        if f_online_game and data_usl == 2:
+        data = sock.recv(1024).decode()
+        if data[0] == '2':
+            print('ЕСТЬ!!!!!')
+            exist_scnd_tank = True
+        if f_online_game and exist_scnd_tank:
             print('fdsfsd')
-            W, H = 600, 600
-            FPS = 30
-
-            pygame.init()
-            screen = pygame.display.set_mode((W, H))
-            clock_ = pygame.time.Clock()
 
             TYPES_OF_IMAGES = {1: [tank_img, tank1_img], 2: wall_img, 3: bullet_img}
-
-
-            def find_inf(s):
-                otkr = None
-                s = s.decode('utf-8')
-                for i in range(len(s)):
-                    if s[i] == '[':
-                        otkr = i
-                    if s[i] == ']' and otkr is not None:
-                        zakr = i
-                        res = s[otkr + 1: zakr]
-                        return '[' + res + ']'
-                return '[]'
-
 
             old_data = []
             runnin = True
@@ -939,35 +933,62 @@ while st_ekran:
                         if event.button == 1:
                             message = '<2>'
                             message_v = '2'
+                    elif event.type == pygame.KEYDOWN:
+                        if event.key == pygame.K_ESCAPE:
+                            game_pause = True
+                if game_pause:
+                    game_pause_f = 1
+                    scr.blit(bg_pause, (0, 0))
+                    while game_pause_f:
+                        data = sock.recv(2 ** 24)
+                        print(data)
+                        for event in pygame.event.get():
+                            if event.type == pygame.QUIT:
+                                st_ekran = False
+                                pygame.quit()
+                            elif event.type == pygame.KEYDOWN:
+                                if event.key == pygame.K_ESCAPE:
+                                    game_pause_f = 0
+                                    game_pause = False
+                            scr.blit(main_disp_img, (0, 0))
+                            txt_su = font_sprav_main_nastr.render('Pause', True, (255, 255, 255))
+                            scr.blit(txt_su, (W // 2 - txt_su.get_width() // 2, 0))
 
-                # считываем команду
-                keys = pygame.key.get_pressed()
-                if keys[pygame.K_a]:
-                    message = f'<-1,0,{message_v}>'
-                elif keys[pygame.K_s]:
-                    message = f'<0,1,{message_v}>'
-                elif keys[pygame.K_w]:
-                    message = f'<0,-1,{message_v}>'
-                elif keys[pygame.K_d]:
-                    message = f'<1,0,{message_v}>'
-                sock.send(message.encode())
-                # получаем изменения
+                            pygame.display.update()
+                            clock_.tick(FPS)
                 data = sock.recv(2 ** 24)
-                data = json.loads(find_inf(data))
-                if data:
-                    old_data = data
+                print(data)
+                if not game_pause:
+                    # считываем команду
+                    keys = pygame.key.get_pressed()
+                    if keys[pygame.K_a]:
+                        message = f'<-1,0,{message_v}>'
+                    elif keys[pygame.K_s]:
+                        message = f'<0,1,{message_v}>'
+                    elif keys[pygame.K_w]:
+                        message = f'<0,-1,{message_v}>'
+                    elif keys[pygame.K_d]:
+                        message = f'<1,0,{message_v}>'
+                    sock.send(message.encode())
+                    # получаем изменения
+                    data = json.loads(find_inf(data))
+                    if data:
+                        old_data = data
+                    pprint.pprint(data)
+                    # рисуем все
+                    scr.blit(bg, (0, 0))
+                    for i in old_data:
+                        n_cl, num_t, x, y, hp, pos = i.values()
+                        if n_cl == 1:
+                            scr.blit(pygame.transform.rotate(TYPES_OF_IMAGES[n_cl][num_t - 1], (pos - 1) * 90), (x, y))
+                            if num_t == 1:
+                                scr.blit(tank2_hp, (W - 150, 0), ((30 * (hp - 5)), 0, 150, 30))
+                            else:
+                                scr.blit(tank1_hp, (0, 0), (abs(30 * (hp - 5)), 0, 150, 30))
+                        if n_cl == 2:
+                            scr.blit(TYPES_OF_IMAGES[n_cl], (x, y))
+                        if n_cl == 3:
+                            scr.blit(pygame.transform.rotate(TYPES_OF_IMAGES[n_cl], (pos - 1) * 90), (x, y))
 
-                # рисуем все
-                screen.blit(bg, (0, 0))
-                for i in old_data:
-                    n_cl, num_t, x, y, pos = i.values()
-                    if n_cl == 1:
-                        screen.blit(pygame.transform.rotate(TYPES_OF_IMAGES[n_cl][num_t - 1], (pos - 1) * 90), (x, y))
-                    if n_cl == 2:
-                        screen.blit(TYPES_OF_IMAGES[n_cl], (x, y))
-                    if n_cl == 3:
-                        screen.blit(pygame.transform.rotate(TYPES_OF_IMAGES[n_cl], (pos - 1) * 90), (x, y))
-
-                pygame.display.update()
-                clock_.tick(FPS)
-
+                    pygame.display.update()
+                    clock_.tick(FPS)
