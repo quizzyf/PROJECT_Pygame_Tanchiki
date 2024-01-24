@@ -44,15 +44,37 @@ def foo(m_socket, port):
             self.image = pygame.Surface((30, 30))
             self.is_dead = False
             self.rect = self.image.get_rect()
-            self.rect.x = num * 19 * 30
-            self.rect.y = ran.randint(1, 19) * 30
-            while pygame.sprite.spritecollide(self, walls, False):
-                self.rect.x = num * 19 * 30
-                self.rect.y = ran.randint(1, 19) * 30
+            self.hp = 5
+            self.tank_end_g = ''
+            if num == 0:
+                if spis_zn_tank_1 == [(0, 0), 5]:
+                    self.rect.x = num * 19 * 30
+                    self.rect.y = ran.randint(1, 19) * 30
+                    while pygame.sprite.spritecollide(self, walls, False):
+                        self.rect.x = num * 19 * 30
+                        self.rect.y = ran.randint(1, 19) * 30
+                    self.hp = 5
+                else:
+                    x, y = spis_zn_tank_1[0]
+                    self.rect.x = x
+                    self.rect.y = y
+                    self.hp = spis_zn_tank_1[1]
+            elif num == 1:
+                if spis_zn_tank_2 == [(0, 0), 5]:
+                    self.rect.x = num * 19 * 30
+                    self.rect.y = ran.randint(1, 19) * 30
+                    while pygame.sprite.spritecollide(self, walls, False):
+                        self.rect.x = num * 19 * 30
+                        self.rect.y = ran.randint(1, 19) * 30
+                    self.hp = 5
+                else:
+                    print('edited')
+                    x, y = spis_zn_tank_2[0]
+                    self.rect.x = x
+                    self.rect.y = y
+                    self.hp = spis_zn_tank_2[1]
             self.speed = 2
             self.pos = 1
-            self.hp = 5
-            self.shield = 0
             self.attack = 1
 
         def update(self, n_x=0, n_y=0, v=0):
@@ -213,13 +235,14 @@ def foo(m_socket, port):
         pole_of_blocks[x // 30][y // 30] = wall
         all_sprites.add(wall)
         walls.add(wall)
-    game_f = True
     tank_1 = None
     tank_2 = None
-    live_is = True
-    game_pause = False
+    end_of_game = False
+    spis_zn_tank_1 = [(0, 0), 5]
+    spis_zn_tank_2 = [(0, 0), 5]
     players = []
     runnin = True
+    error_for_off_server = 0
     while runnin:
         # Есть ли челы ждущие входа
         try:
@@ -228,17 +251,15 @@ def foo(m_socket, port):
                 new_sock.setblocking(False)
                 print('Есть один', address, port)
                 if not tank_1:
-                    tank_1 = Tank(new_sock, len(tanks))
+                    tank_1 = Tank(new_sock, 0)
                     all_sprites.add(tank_1)
                     tanks.add(tank_1)
                     players.append(tank_1)
-                    print(tank_1)
                 else:
-                    tank_2 = Tank(new_sock, len(tanks))
+                    tank_2 = Tank(new_sock, 1)
                     all_sprites.add(tank_2)
                     tanks.add(tank_2)
                     players.append(tank_2)
-                    print(tank_2)
                 slovar_of_conns[port] += 1
                 for pl in players:
                     pl.sock.send(str(len(tanks)).encode())
@@ -246,7 +267,7 @@ def foo(m_socket, port):
                 new_sock.send('F'.encode())
         except:
             pass
-        if tank_1 and tank_2:
+        if tank_1 or tank_2:
             # считываем команды от челов
             for player in players:
                 try:
@@ -259,8 +280,6 @@ def foo(m_socket, port):
                         player.update(*h)
                 except:
                     pass
-            # обработка команд от челов
-
             # отправляем изменения челам
             for player in players:
                 try:
@@ -279,48 +298,69 @@ def foo(m_socket, port):
                         mesg = json.dumps(sprite_data).encode('utf-8')
                         player.sock.send(mesg)
                         player.errors = 0
+                        error_for_off_server = 0
                     else:
-                        player.sock.send(str(len(tanks)).encode())
+                        if not end_of_game:
+                            player.sock.send(str(len(tanks)).encode())
+                        else:
+                            player.sock.send(player.tank_end_g.encode())
                 except:
-                    player.errors += 1
-                    print('err')
-                    if player.errors >= 150:
-                        player.sock.close()
+                    if len(tanks) == 2:
+                        player.errors += 1
+                        if player.errors >= 30:
+                            player.sock.close()
+                            players.remove(player)
+                            all_sprites.remove(player)
+                            tanks.remove(player)
+                            if player == tank_1:
+                                spis_zn_tank_1 = [(player.rect.x, player.rect.y), player.hp]
+                                tank_1 = None
+                            else:
+                                spis_zn_tank_2 = [(player.rect.x, player.rect.y), player.hp]
+                                tank_2 = None
+                            print(f'Отключен {player}')
+            if len(tanks) == 1:
+                error_for_off_server += 1
+                if error_for_off_server >= 300:
+                    for player in players:
+                        try:
+                            player.sock.send('OFF_SERVER'.encode())
+                        except:
+                            pass
                         players.remove(player)
                         all_sprites.remove(player)
                         tanks.remove(player)
-                        print('Отключен челик')
-            print(tank_1, tank_2)
+                        print('Сервер свободен')
+                        return
             all_sprites_for_update.update()
             if len(tanks) == 2:
                 pygame.sprite.groupcollide(walls, bullets, True, True)
                 if pygame.sprite.spritecollide(tank_1, bullets_t_2, True):
-                    print('COLLISION!! tank1')
                     tank_1.hp -= tank_2.attack
+                    if tank_1.hp == 0:
+                        tank_1.tank_end_g = 'G_O_0'
+                        tank_2.tank_end_g = 'G_O_1'
+                        end_of_game = True
                 if pygame.sprite.spritecollide(tank_2, bullets_t_1, True):
-                    print('COLLISION!! tank2')
                     tank_2.hp -= tank_1.attack
-                # print(list(bullets_t_1), list(bullets_t_2), tank_1, tank_2)
-            # print(len(tanks)) if tanks else None
+                    if tank_2.hp == 0:
+                        tank_1.tank_end_g = 'G_O_1'
+                        tank_2.tank_end_g = 'G_O_0'
+                        end_of_game = True
             clock_.tick(FPS)
-        if len(tanks) == 0:
-            tank_1 = None
-            tank_2 = None
 
 
-# Функция для запуска сервера
 def run_server(port):
-    # Создание сокета
-    main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    main_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-    main_socket.bind(('0.0.0.0', port))
-    main_socket.setblocking(False)
-    main_socket.listen(2)
-    print(f'Сервер запущен на порту {port}')
-    foo(main_socket, port)
+    while True:
+        main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        main_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+        main_socket.bind(('0.0.0.0', port))
+        main_socket.setblocking(False)
+        main_socket.listen(2)
+        print(f'Сервер запущен на порту {port}')
+        foo(main_socket, port)
 
 
-# Запуск серверов
 if __name__ == '__main__':
     server_ports = [8000, 8001, 8002, 8003, 8004]
     slovar_of_conns = {i: 0 for i in server_ports}
