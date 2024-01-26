@@ -1,5 +1,4 @@
 import pprint
-
 import pygame
 import random as ran
 import sqlite3
@@ -148,6 +147,7 @@ class Tank1(pygame.sprite.Sprite):
         self.rect.y = ran.randint(1, 9) * 60
         self.speed = 2
         self.pos = 1
+        self.old_pos = self.pos
         self.hp = 5
         self.shield = 0
         self.attack = 1
@@ -156,29 +156,34 @@ class Tank1(pygame.sprite.Sprite):
         old_x, old_y = self.rect.x, self.rect.y
         keys = pygame.key.get_pressed()
         if keys[pygame.K_LEFT]:
+            self.rect.x -= self.speed
             if self.rect.left < 0:
                 self.rect.left = 0
-            self.rect.x -= self.speed
             self.image = self.image_left
             self.pos = 2
         elif keys[pygame.K_RIGHT]:
+            self.rect.x += self.speed
             if self.rect.right > 600:
                 self.rect.right = 600
-            self.rect.x += self.speed
             self.image = self.image_right
             self.pos = 4
         elif keys[pygame.K_UP]:
-            if self.rect.top < 32:
-                self.rect.top = 32
             self.rect.y -= self.speed
+            if self.rect.top < 30:
+                self.rect.top = 30
             self.image = self.image_orig
             self.pos = 1
         elif keys[pygame.K_DOWN]:
+            self.rect.y += self.speed
             if self.rect.bottom > 600:
                 self.rect.bottom = 600
-            self.rect.y += self.speed
             self.image = self.image_down
             self.pos = 3
+        if self.old_pos != self.pos and self.pos in [1, 3]:
+            self.rect.x = round(self.rect.x / 15) * 15
+        if self.old_pos != self.pos and self.pos in [2, 4]:
+            self.rect.y = round(self.rect.y / 15) * 15
+        self.old_pos = self.pos
         stolk_walls = pygame.sprite.spritecollide(tank_2, walls, False)
         stolk_tanks = pygame.sprite.collide_rect(tank_1, tank_2) if tank_1 in tanks else None
         if stolk_walls or stolk_tanks:
@@ -215,6 +220,7 @@ class Tank(pygame.sprite.Sprite):
         self.rect.y = ran.randint(1, 9) * 60
         self.speed = 2
         self.pos = 1
+        self.old_pos = self.pos
         self.hp = 5
         self.shield = 0
         self.attack = 1
@@ -223,29 +229,34 @@ class Tank(pygame.sprite.Sprite):
         old_x, old_y = self.rect.x, self.rect.y
         keys = pygame.key.get_pressed()
         if keys[pygame.K_a]:
+            self.rect.x -= self.speed
             if self.rect.left < 0:
                 self.rect.left = 0
-            self.rect.x -= self.speed
             self.image = self.image_left
             self.pos = 2
         elif keys[pygame.K_d]:
+            self.rect.x += self.speed
             if self.rect.right > 600:
                 self.rect.right = 600
-            self.rect.x += self.speed
             self.image = self.image_right
             self.pos = 4
         elif keys[pygame.K_w]:
-            if self.rect.top < 32:
-                self.rect.top = 32
             self.rect.y -= self.speed
+            if self.rect.top < 30:
+                self.rect.top = 30
             self.image = self.image_orig
             self.pos = 1
         elif keys[pygame.K_s]:
+            self.rect.y += self.speed
             if self.rect.bottom > 600:
                 self.rect.bottom = 600
-            self.rect.y += self.speed
             self.image = self.image_down
             self.pos = 3
+        if self.old_pos != self.pos and self.pos in [1, 3]:
+            self.rect.x = round(self.rect.x / 15) * 15
+        if self.old_pos != self.pos and self.pos in [2, 4]:
+            self.rect.y = round(self.rect.y / 15) * 15
+        self.old_pos = self.pos
         stolk_walls = pygame.sprite.spritecollide(tank_1, walls, False)
         stolk_tanks = pygame.sprite.collide_rect(tank_1, tank_2) if tank_2 in tanks else None
         if stolk_walls or stolk_tanks:
@@ -282,7 +293,6 @@ class Block(pygame.sprite.Sprite):
 
     def dokill(self):
         x_t, y_t = self.rect.x // 30, self.rect.y // 30
-        pole_of_blocks[x_t][y_t] = ''
         self.kill()
 
 
@@ -316,19 +326,19 @@ class Bullet1(pygame.sprite.Sprite):
     def update(self):
         if self.pos == 1:
             self.rect.y -= self.speed
-            if self.rect.y < 32:
+            if self.rect.y < 30:
                 self.kill()
         elif self.pos == 2:
             self.rect.x -= self.speed
-            if self.rect.x < 0:
+            if self.rect.x < -5:
                 self.kill()
         elif self.pos == 3:
             self.rect.y += self.speed
-            if self.rect.y > 600:
+            if self.rect.y > 605:
                 self.kill()
         elif self.pos == 4:
             self.rect.x += self.speed
-            if self.rect.x > 600:
+            if self.rect.x > 605:
                 self.kill()
 
 
@@ -362,19 +372,19 @@ class Bullet2(pygame.sprite.Sprite):
     def update(self):
         if self.pos == 1:
             self.rect.y -= self.speed
-            if self.rect.y < 32:
+            if self.rect.y < 35:
                 self.kill()
         elif self.pos == 2:
             self.rect.x -= self.speed
-            if self.rect.x < 0:
+            if self.rect.x < -5:
                 self.kill()
         elif self.pos == 3:
             self.rect.y += self.speed
-            if self.rect.y > 600:
+            if self.rect.y > 605:
                 self.kill()
         elif self.pos == 4:
             self.rect.x += self.speed
-            if self.rect.x > 600:
+            if self.rect.x > 605:
                 self.kill()
 
 
@@ -578,6 +588,9 @@ def main_menu_online():
 
 def main_menu():
     global perezapusk, game_f, game_pause_f
+    cur.execute(f'UPDATE tanks SET value = ? WHERE id_tank = ?', (0, 1))
+    cur.execute(f'UPDATE tanks SET value = ? WHERE id_tank = ?', (0, 2))
+    conn.commit()
     game_pause_cls.tek_index = 0
     perezapusk, game_f, game_pause_f = False, False, False
 
@@ -615,6 +628,7 @@ def find_inf(s):
     return '[]'
 
 
+# инитиализация всех нужных классов и переменных для главного меню
 menu = StartDisplay()
 st_ekran = True
 f_online_game = False
@@ -627,8 +641,6 @@ exist_scnd_tank = False
 game_pause_online = False
 sock = None
 txt_error_online_game = ''
-cur.execute('SELECT * FROM tanks')
-schet = cur.fetchall()
 menu.append_option('НАЧАТЬ ИГРУ', lambda: start_game())
 menu.append_option('Сетевая игра', lambda: start_online_game())
 menu.append_option('справка', lambda: spravka())
@@ -645,7 +657,9 @@ game_pause_cls_online = GamePause_for_online()
 game_pause_cls_online.append_option('продолжить', lambda: switch_game_pause_online())
 game_pause_cls_online.append_option('звук', lambda: switch_volume(), True)
 game_pause_cls_online.append_option('выйти в меню', lambda: main_menu_online())
+# начало цикла главного меню
 while st_ekran:
+    # перебор всех событий pygame
     for event in pygame.event.get():
         if event.type == pygame.QUIT:
             cur.execute(f'UPDATE tanks SET value = ? WHERE id_tank = ?', (0, 1))
@@ -679,15 +693,18 @@ while st_ekran:
             if event.key == pygame.K_ESCAPE:
                 f_spravka = False
                 f_nastroiki = False
+    # проверка для открытия справки
     if f_spravka:
         scr.blit(nastr_spravka_bg_img, (0, 0))
         txt_sprv = font_st_disp.render('справка', True, (14, 103, 24))
         spravka_cl.drawi()
+    # проверка для открытия настроек
     elif f_nastroiki:
         scr.blit(main_disp_img, (0, 0))
         txt_settings = font_sprav_main_nastr.render('Settings', True, (255, 255, 255))
         scr.blit(txt_settings, (W // 2 - txt_settings.get_width() // 2, 0))
         settings.drawi(335, 300, 50)
+    # иначе выводить главное меню
     else:
         scr.blit(main_disp_img, (0, 0))
         menu.drawi(335, 300, 50)
@@ -695,6 +712,7 @@ while st_ekran:
         scr.blit(txt_name, (W // 2 - txt_name.get_width() // 2, 0))
         txt_error = font_st_disp_errors.render(txt_error_online_game, True, (0, 0, 0))
         scr.blit(txt_error, (590 - txt_error.get_width(), 560))
+    # проверка на включение музыки
     if not perezapusk:
         sound_shoot.set_volume(0)
         sound_uncht_tanka.set_volume(0)
@@ -703,8 +721,13 @@ while st_ekran:
         sound_medkit.set_volume(0)
         pygame.mixer.music.stop()
     pygame.display.update()
+    # начало цикла перезапуска игры, чтобы шла пока не выйти в главное меню. инициализация всех переменных и классов
     while perezapusk:
-        pole_of_blocks = [['' for i in range(20)] for _ in range(20)]
+        # счет игры
+        cur.execute('SELECT * FROM tanks')
+        schet = cur.fetchall()
+
+        # инициализация классов и групп спрайтов
         all_sprites = pygame.sprite.Group()
         tanks = pygame.sprite.Group()
         bullets = pygame.sprite.Group()
@@ -727,12 +750,12 @@ while st_ekran:
             while (x == tank_1.rect.x and y == tank_1.rect.y) or (x == tank_2.rect.x and y == tank_2.rect.y):
                 x, y = ran.randint(0, 19) * 30, ran.randint(1, 19) * 30
             wall = Block(x, y)
-            pole_of_blocks[x // 30][y // 30] = wall
             all_sprites.add(wall)
             walls.add(wall)
         boost = Boosts()
         boosts.add(boost)
 
+        # инициализация всех переменных
         game_f = True
         boost_f = True
         can_shoot_tank2 = False
@@ -751,16 +774,20 @@ while st_ekran:
         current_time_boost = 0
         shetchik_mk = 0
 
+        # начало самой игры
         while game_f:
+            # проверка таймеров
             if can_shoot_tank2:
                 current_time_tank2 = int(time.time() - start_time_shoot_tank2)
             if can_shoot_tank1:
                 current_time_tank1 = int(time.time() - start_time_shoot_tank1)
             if f_medkit:
                 current_time_mk = int(time.time() - start_time_mk)
+
+            # проверка на взятия буста, определение усиления\ухудшения на танк
             if Sopric_boost:
                 Eff_boost = True
-                sp_baffs = [4]
+                sp_baffs = [1, 2, 3, 4, 5, 6]
                 rand_baff = ran.choice(sp_baffs)
                 start_time_boost = time.time()
                 if rand_baff == 1:
@@ -780,6 +807,8 @@ while st_ekran:
                 elif rand_baff == 6:
                     Sopric_tank.attack = 2
                 Sopric_boost = False
+
+            # проверка на кол-во хилок
             if len(medkits) < 3:
                 if current_time_mk == 10 and shetchik_mk < 5:
                     shetchik_mk += 1
@@ -792,12 +821,16 @@ while st_ekran:
                 current_time_mk = 0
                 start_time_mk = time.time()
                 f_medkit = False
+
+            # проверка на таймер выстрела танков
             if current_time_tank1 == 1:
                 can_shoot_tank1 = False
                 current_time_tank1 = 1
             if current_time_tank2 == 1:
                 can_shoot_tank2 = False
                 current_time_tank2 = 1
+
+            # проверка событий pygame
             for event in pygame.event.get():
                 if event.type == pygame.QUIT:
                     cur.execute(f'UPDATE tanks SET value = ? WHERE id_tank = ?', (0, 1))
@@ -823,6 +856,8 @@ while st_ekran:
                             sound_shoot.play()
                     if event.key == pygame.K_ESCAPE:
                         game_pause = True
+
+            # проверка на паузу
             if game_pause:
                 game_pause_f = 1
                 scr.blit(bg_pause, (0, 0))
@@ -853,11 +888,15 @@ while st_ekran:
                         game_pause_cls.drawi(335, 300, 50)
                         pygame.display.update()
 
+            # проверка изменений спрайтов
             all_sprites.update()
             boosts.update()
             medkits.update()
+
+            # отрисовка фона
             scr.blit(bg, (0, 0))
 
+            # таймер буста и его окончание
             if Eff_boost:
                 if not game_pause:
                     current_time_boost = int(time.time() - start_time_boost)
@@ -875,6 +914,8 @@ while st_ekran:
                     Sopric_tank.speed = 2
                     Sopric_tank.attack = 1
                     Eff_boost = False
+
+            # проверка на окончание игры
             if len(tanks) == 1:
                 cur.execute('SELECT * FROM tanks')
                 schet = cur.fetchall()
@@ -893,6 +934,8 @@ while st_ekran:
             if len(tanks) == 0:
                 time.sleep(1.5)
                 break
+
+            # проверка на столкновения спрайтов
             if pygame.sprite.groupcollide(walls, bullets, False, False):
                 for i in pygame.sprite.groupcollide(walls, bullets, False, True):
                     i.hp -= 1
@@ -916,13 +959,14 @@ while st_ekran:
                     tank_2.is_live()
                     sound_uncht_tanka.play()
 
-            # drawing all
+            # отрисовка всего
             all_sprites.draw(scr)
             if not Eff_boost:
                 boost.draw()
             for i in medkits:
                 i.draw()
 
+            # отрисовка счета, здоровья, и конечно же апдейт экрана
             txt_surf = font_schet.render(str(f'Синий {schet[0][1]} : {schet[1][1]} Красный'), True, 'White')
             scr.blit(txt_surf, (W // 2 - txt_surf.get_width() // 2, 5))
             scr.blit(tank1_hp, (0, 0), (abs(30 * (tank_1.hp - 5)), 0, 150, 30))
@@ -930,6 +974,8 @@ while st_ekran:
 
             pygame.display.update()
             clock_.tick(FPS)
+
+    # начало СЕТЕВОЙ ИГРЫ, дальше комментариев не будет, я устал (разберитесь сами пожалуйста)
     if not f_online_game:
         sock = None
         find_room = True
@@ -1076,7 +1122,8 @@ while st_ekran:
                             for i in old_data:
                                 n_cl, num_t, x, y, hp, pos = i.values()
                                 if n_cl == 1:
-                                    scr.blit(pygame.transform.rotate(TYPES_OF_IMAGES[n_cl][num_t - 1], (pos - 1) * 90), (x, y))
+                                    scr.blit(pygame.transform.rotate(TYPES_OF_IMAGES[n_cl][num_t - 1], (pos - 1) * 90),
+                                             (x, y))
                                     if num_t == 1:
                                         scr.blit(tank2_hp, (W - 150, 0), ((30 * (hp - 5)), 0, 150, 30))
                                     else:
