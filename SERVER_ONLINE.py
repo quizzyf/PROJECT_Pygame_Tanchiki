@@ -75,6 +75,7 @@ def foo(m_socket, port):
                     self.hp = spis_zn_tank_2[1]
             self.speed = 2
             self.pos = 1
+            self.old_pos = self.pos
             self.attack = 1
 
         def update(self, n_x=0, n_y=0, v=0):
@@ -101,6 +102,10 @@ def foo(m_socket, port):
                 if self.rect.top < 30:
                     self.rect.top = 30
                 self.pos = 1
+            if self.old_pos != self.pos and self.pos in [1, 3]:
+                self.rect.x = round(self.rect.x / 15) * 15
+            if self.old_pos != self.pos and self.pos in [2, 4]:
+                self.rect.y = round(self.rect.y / 15) * 15
             if len(tanks) == 2:
                 stolk_walls = pygame.sprite.spritecollide(self, walls, False)
                 if self.num == 0:
