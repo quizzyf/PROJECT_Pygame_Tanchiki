@@ -243,11 +243,12 @@ def foo(m_socket, port):
     players = []
     runnin = True
     error_for_off_server = 0
+    f_error_for_off_server = False
     while runnin:
         # Есть ли челы ждущие входа
         try:
             new_sock, address = m_socket.accept()
-            if len(tanks) < 2:
+            if len(tanks) < 2 and not f_error_for_off_server:
                 new_sock.setblocking(False)
                 print('Есть один', address, port)
                 if not tank_1:
@@ -307,7 +308,7 @@ def foo(m_socket, port):
                 except:
                     if len(tanks) == 2:
                         player.errors += 1
-                        if player.errors >= 30:
+                        if player.errors >= 10:
                             player.sock.close()
                             players.remove(player)
                             all_sprites.remove(player)
@@ -334,19 +335,24 @@ def foo(m_socket, port):
                         return
             all_sprites_for_update.update()
             if len(tanks) == 2:
-                pygame.sprite.groupcollide(walls, bullets, True, True)
-                if pygame.sprite.spritecollide(tank_1, bullets_t_2, True):
-                    tank_1.hp -= tank_2.attack
-                    if tank_1.hp == 0:
-                        tank_1.tank_end_g = 'G_O_0'
-                        tank_2.tank_end_g = 'G_O_1'
-                        end_of_game = True
-                if pygame.sprite.spritecollide(tank_2, bullets_t_1, True):
-                    tank_2.hp -= tank_1.attack
-                    if tank_2.hp == 0:
-                        tank_1.tank_end_g = 'G_O_1'
-                        tank_2.tank_end_g = 'G_O_0'
-                        end_of_game = True
+                try:
+                    pygame.sprite.groupcollide(walls, bullets, True, True)
+                    if pygame.sprite.spritecollide(tank_1, bullets_t_2, True):
+                        tank_1.hp -= tank_2.attack
+                        if tank_1.hp == 0:
+                            tank_1.tank_end_g = 'G_O_0'
+                            tank_2.tank_end_g = 'G_O_1'
+                            end_of_game = True
+                            f_error_for_off_server = True
+                    if pygame.sprite.spritecollide(tank_2, bullets_t_1, True):
+                        tank_2.hp -= tank_1.attack
+                        if tank_2.hp == 0:
+                            tank_1.tank_end_g = 'G_O_1'
+                            tank_2.tank_end_g = 'G_O_0'
+                            end_of_game = True
+                            f_error_for_off_server = True
+                except:
+                    pass
             clock_.tick(FPS)
 
 
