@@ -14,6 +14,36 @@ clock_ = pygame.time.Clock()
 
 
 def foo(m_socket, port):
+    class Medkit(pygame.sprite.Sprite):
+        def __init__(self):
+            pygame.sprite.Sprite.__init__(self)
+            self.name_class = 4
+            self.num = 0
+            self.image = pygame.Surface((40, 20))
+            self.rect = self.image.get_rect()
+            self.killed = False
+            self.pos = 0
+            self.hp = 1
+            self.rect.x, self.rect.y = ran.randint(0, 9) * 60 + 5, ran.randint(1, 9) * 60 + 5
+            while (pygame.sprite.spritecollide(self, walls, False) or
+                   pygame.sprite.spritecollide(self, tanks, False)):
+                self.rect.x, self.rect.y = ran.randint(0, 9) * 60 + 5, ran.randint(1, 9) * 60 + 5
+
+        def update(self):
+            self.num = (self.num + 0.05) % 2
+            hits_medkit = pygame.sprite.spritecollide(self, tanks, False)
+            if hits_medkit and hits_medkit[0].hp != 5:
+                if hits_medkit[0].hp < 4:
+                    hits_medkit[0].hp += 2
+                else:
+                    hits_medkit[0].hp = 5
+                self.dokill()
+
+        def dokill(self):
+            self.killed = True
+            self.kill()
+
+
     class Block(pygame.sprite.Sprite):
         def __init__(self, x_block, y_block):
             pygame.sprite.Sprite.__init__(self)
@@ -68,7 +98,6 @@ def foo(m_socket, port):
                         self.rect.y = ran.randint(1, 19) * 30
                     self.hp = 5
                 else:
-                    print('edited')
                     x, y = spis_zn_tank_2[0]
                     self.rect.x = x
                     self.rect.y = y
@@ -102,6 +131,7 @@ def foo(m_socket, port):
                 if self.rect.top < 30:
                     self.rect.top = 30
                 self.pos = 1
+
             if self.old_pos != self.pos and self.pos in [1, 3]:
                 self.rect.x = round(self.rect.x / 15) * 15
             if self.old_pos != self.pos and self.pos in [2, 4]:
@@ -234,6 +264,7 @@ def foo(m_socket, port):
     bullets_t_1 = pygame.sprite.Group()
     bullets_t_2 = pygame.sprite.Group()
     walls = pygame.sprite.Group()
+    medkits = pygame.sprite.Group()
     for i in range(100):
         x, y = ran.randint(0, 19) * 30, ran.randint(1, 19) * 30
         wall = Block(x, y)
@@ -247,6 +278,11 @@ def foo(m_socket, port):
     spis_zn_tank_2 = [(0, 0), 5]
     players = []
     runnin = True
+    current_time_mk = 10
+    f_medkit = False
+    start_time_mk = time.time()
+    shetchik_mk = 0
+
     error_for_off_server = 0
     f_error_for_off_server = False
     while runnin:
@@ -340,6 +376,25 @@ def foo(m_socket, port):
                         return
             all_sprites_for_update.update()
             if len(tanks) == 2:
+                if f_medkit:
+                    current_time_mk = int(time.time() - start_time_mk)
+
+                if len(medkits) < 3:
+                    if current_time_mk >= 10 and shetchik_mk < 5:
+                        shetchik_mk += 1
+                        medkit = Medkit()
+                        medkits.add(medkit)
+                        all_sprites.add(medkit)
+                        all_sprites_for_update.add(medkit)
+                        start_time_mk = time.time()
+                        current_time_mk = 0
+                    f_medkit = True
+
+                if len(medkits) >= 3:
+                    current_time_mk = 0
+                    start_time_mk = time.time()
+                    f_medkit = False
+
                 try:
                     pygame.sprite.groupcollide(walls, bullets, True, True)
                     if pygame.sprite.spritecollide(tank_1, bullets_t_2, True):
@@ -362,12 +417,12 @@ def foo(m_socket, port):
 
 
 def run_server(port):
+    main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    main_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    main_socket.bind(('0.0.0.0', port))
+    main_socket.setblocking(False)
+    main_socket.listen(2)
     while True:
-        main_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        main_socket.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
-        main_socket.bind(('0.0.0.0', port))
-        main_socket.setblocking(False)
-        main_socket.listen(2)
         print(f'Сервер запущен на порту {port}')
         foo(main_socket, port)
 

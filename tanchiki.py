@@ -36,6 +36,7 @@ scr = pygame.display.set_mode((W, H))
 pygame.display.set_icon(pygame.image.load('images/tanchiki/icon_tanchiki.ico'))
 bg = pygame.image.load('images/tanchiki/bg_tanki.png').convert()
 bg_pause = pygame.image.load('images/tanchiki/bg_pause_game_tanki.png').convert()
+bg_wait_for_players = pygame.image.load('images/tanchiki/wait_for_players.png').convert_alpha()
 boost_img = pygame.image.load('images/tanchiki/boost.png').convert_alpha()
 boost_img_or = pygame.image.load('images/tanchiki/boost_or.png').convert_alpha()
 medkit_img_or = pygame.image.load('images/tanchiki/medkit_or.png').convert_alpha()
@@ -655,7 +656,6 @@ game_pause_cls.append_option('звук', lambda: switch_volume(), True)
 game_pause_cls.append_option('выйти в меню', lambda: main_menu())
 game_pause_cls_online = GamePause_for_online()
 game_pause_cls_online.append_option('продолжить', lambda: switch_game_pause_online())
-game_pause_cls_online.append_option('звук', lambda: switch_volume(), True)
 game_pause_cls_online.append_option('выйти в меню', lambda: main_menu_online())
 # начало цикла главного меню
 while st_ekran:
@@ -987,7 +987,11 @@ while st_ekran:
                     f_online_game = False
                     st_ekran = False
                     exist_scnd_tank = True
-            scr.blit(pygame.image.load('images/tanchiki/wait_for_players.png'), (0, 0))
+                elif event.type == pygame.KEYDOWN:
+                    if event.key == pygame.K_ESCAPE:
+                        f_online_game, exist_scnd_tank = False, True
+                        break
+            scr.blit(bg_wait_for_players, (0, 0))
             if find_room:
                 for i in [8000, 8001, 8002, 8003, 8004]:
                     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -1033,7 +1037,7 @@ while st_ekran:
                     exist_scnd_tank = True
                 if f_online_game and exist_scnd_tank:
 
-                    TYPES_OF_IMAGES = {1: [tank_img, tank1_img], 2: wall_img, 3: bullet_img}
+                    TYPES_OF_IMAGES = {1: [tank_img, tank1_img], 2: wall_img, 3: bullet_img, 4: medkit_img}
 
                     start_time_shoot_online = time.time()
                     can_shoot_online = True
@@ -1042,13 +1046,14 @@ while st_ekran:
                     old_data = []
                     runnin = True
                     while runnin:
+                        data = sock.recv(2 ** 24)
                         if can_shoot_online:
                             current_time_shoot_online = int(time.time() - start_time_shoot_online)
                         if current_time_shoot_online >= 1:
                             can_shoot_online = False
                             current_time_shoot_online = 1
-                        message = '<0,0>'
-                        message_v = '0'
+                        message = '<0,0'
+                        message_v = '0>'
                         for event in pygame.event.get():
                             if event.type == pygame.QUIT:
                                 runnin = False
@@ -1056,13 +1061,13 @@ while st_ekran:
                                 st_ekran = False
                             elif event.type == pygame.MOUSEBUTTONDOWN:
                                 if event.button == 1:
-                                    if current_time_shoot_online == 1:
+                                    if current_time_shoot_online >= 1:
                                         message = '<2>'
-                                        message_v = '2'
+                                        message_v = '2>'
                                         start_time_shoot_online = time.time()
                                         can_shoot_online = True
                             elif event.type == pygame.KEYDOWN:
-                                if event.key == pygame.K_ESCAPE:
+                                if event.key == pygame.K_ESCAPE and data.decode() != '1':
                                     game_pause_online = True
                         if game_pause_online:
                             game_pause_for_c = 1
@@ -1088,7 +1093,6 @@ while st_ekran:
                                     scr.blit(txt_su, (W // 2 - txt_su.get_width() // 2, 0))
                                     game_pause_cls_online.drawi(335, 300, 50)
                                     pygame.display.update()
-                        data = sock.recv(2 ** 24)
                         if str(data.decode().replace('1', '')) == 'OFF_SERVER':
                             txt_error_online_game = 'Сервер был закрыт от ожидания'
                             main_menu_online()
@@ -1112,7 +1116,7 @@ while st_ekran:
                                 message = f'<0,-1,{message_v}>'
                             elif keys[pygame.K_d]:
                                 message = f'<1,0,{message_v}>'
-                            sock.send(message.encode())
+                            sock.send((message + ',' + message_v).encode())
                             # получаем изменения
                             data = json.loads(find_inf(data))
                             if data:
@@ -1128,13 +1132,16 @@ while st_ekran:
                                         scr.blit(tank2_hp, (W - 150, 0), ((30 * (hp - 5)), 0, 150, 30))
                                     else:
                                         scr.blit(tank1_hp, (0, 0), (abs(30 * (hp - 5)), 0, 150, 30))
-                                if n_cl == 2:
+                                elif n_cl == 2:
                                     scr.blit(TYPES_OF_IMAGES[n_cl], (x, y))
-                                if n_cl == 3:
+                                elif n_cl == 3:
                                     scr.blit(pygame.transform.rotate(TYPES_OF_IMAGES[n_cl], (pos - 1) * 90), (x, y))
-
-                            pygame.display.update()
-                            clock_.tick(FPS)
+                                elif n_cl == 4:
+                                    scr.blit(TYPES_OF_IMAGES[n_cl], (x, y), (20 * int(num_t), 0, 20, 20))
+                        else:
+                            scr.blit(bg_wait_for_players, (0, 0))
+                        pygame.display.update()
+                        clock_.tick(FPS)
             except OSError as e:
                 if e.errno == 10057:
                     txt_error_online_game = 'Сервер временно не работает'
