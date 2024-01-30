@@ -329,12 +329,12 @@ def foo(m_socket, port):
                         sprite_data = []
                         for sprite in all_sprites:
                             sprite_dict = {
-                                'class': sprite.name_class,
-                                'number_tank': sprite.num,
-                                'x': sprite.rect.x,
-                                'y': sprite.rect.y,
-                                'hp': sprite.hp,
-                                'pos': sprite.pos
+                                '1': sprite.name_class,
+                                '2': int(sprite.num),
+                                '3': sprite.rect.x,
+                                '4': sprite.rect.y,
+                                '5': sprite.hp,
+                                '6': sprite.pos
                             }
                             sprite_data.append(sprite_dict)
                         mesg = json.dumps(sprite_data).encode('utf-8')
