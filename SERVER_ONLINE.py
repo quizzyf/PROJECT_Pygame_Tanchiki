@@ -336,6 +336,7 @@ def foo(m_socket, port):
                                 '5': sprite.hp,
                                 '6': sprite.pos
                             }
+                            sprite_dict = list(sprite_dict.values())
                             sprite_data.append(sprite_dict)
                         mesg = json.dumps(sprite_data).encode('utf-8')
                         player.sock.send(mesg)

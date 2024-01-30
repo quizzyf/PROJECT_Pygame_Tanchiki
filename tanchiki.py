@@ -998,7 +998,7 @@ while st_ekran:
                     sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
                     try:
                         sock.connect(('89.223.127.169', i))
-                        data = sock.recv(1024).decode()
+                        data = sock.recv(2 ** 24).decode()
                         if data == 'F':
                             sock.close()
                             continue
@@ -1015,7 +1015,7 @@ while st_ekran:
                             f_online_game = False
                             break
             try:
-                data = sock.recv(1024).decode()
+                data = sock.recv(2 ** 24).decode()
                 if data and data[0] == '2':
                     exist_scnd_tank = True
                     break
@@ -1032,7 +1032,7 @@ while st_ekran:
             clock_.tick(FPS)
         if f_online_game:
             try:
-                data = sock.recv(1024).decode()
+                data = sock.recv(2 ** 24).decode()
                 if data[0] == '2':
                     exist_scnd_tank = True
                 if f_online_game and exist_scnd_tank:
@@ -1118,13 +1118,13 @@ while st_ekran:
                                 message = f'<1,0,{message_v}>'
                             sock.send((message + ',' + message_v).encode())
                             # получаем изменения
-                            data = json.loads(find_inf(data))
+                            data = json.loads(data)
                             if data:
                                 old_data = data
                             # рисуем все
                             scr.blit(bg, (0, 0))
                             for i in old_data:
-                                n_cl, num_t, x, y, hp, pos = i.values()
+                                n_cl, num_t, x, y, hp, pos = i
                                 if n_cl == 1:
                                     scr.blit(pygame.transform.rotate(TYPES_OF_IMAGES[n_cl][num_t - 1], (pos - 1) * 90),
                                              (x, y))
