@@ -622,10 +622,11 @@ def find_inf(s):
     for i in range(len(s)):
         if s[i] == '[':
             otkr = i
-        if s[i] == ']' and otkr is not None:
-            zakr = i
-            res = s[otkr + 1: zakr]
-            return '[' + res + ']'
+            break
+    if s.find(']]') and otkr is not None:
+        zakr = s.find(']]')
+        res = s[otkr: zakr + 1]
+        return res + ']'
     return '[]'
 
 
@@ -1118,9 +1119,12 @@ while st_ekran:
                                 message = f'<1,0,{message_v}>'
                             sock.send((message + ',' + message_v).encode())
                             # получаем изменения
-                            data = json.loads(data)
-                            if data:
-                                old_data = data
+                            try:
+                                data = json.loads(find_inf(data))
+                                if data:
+                                    old_data = data
+                            except:
+                                pass
                             # рисуем все
                             scr.blit(bg, (0, 0))
                             for i in old_data:
