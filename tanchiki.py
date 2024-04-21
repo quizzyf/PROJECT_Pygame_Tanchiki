@@ -998,7 +998,7 @@ while st_ekran:
                     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
                     sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
                     try:
-                        sock.connect(('89.223.127.169', i))
+                        sock.connect(('213.171.6.24', i))
                         data = sock.recv(2 ** 24).decode()
                         if data == 'F':
                             sock.close()
